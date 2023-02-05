@@ -1,5 +1,5 @@
 ({
-  Entity: {},
+	Entity: {},
 
-  name: { type: 'string', unique: true },
+	name: { type: 'string', unique: true },
 });

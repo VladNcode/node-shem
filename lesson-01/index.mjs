@@ -7,6 +7,7 @@ const PORT = 8000;
 const STATIC_PATH = path.join(process.cwd(), './static');
 
 const toBool = [() => true, () => false];
+const dotInFileExtensionName = 1;
 
 const MIME_TYPES = {
 	default: 'application/octet-stream',
@@ -23,25 +24,29 @@ const MIME_TYPES = {
 const prepareFile = async url => {
 	const paths = [STATIC_PATH, url];
 	if (url.endsWith('/')) paths.push('index.html');
+
 	const filePath = path.join(...paths);
-	const pathTraversal = !filePath.startsWith(STATIC_PATH);
-	const exists = await fs.promises.access(filePath).then(...toBool);
-	const found = !pathTraversal && exists;
-	const streamPath = found ? filePath : STATIC_PATH + '/404.html';
-	const ext = path.extname(streamPath).substring(1).toLowerCase();
+
+	const pathTraversalAttempt = !filePath.startsWith(STATIC_PATH);
+	const fileExists = await fs.promises.access(filePath).then(...toBool);
+	const valid = !pathTraversalAttempt && fileExists;
+
+	const streamPath = valid ? filePath : `${STATIC_PATH}/404.html`;
+	const fileExtension = path.extname(streamPath).substring(dotInFileExtensionName).toLowerCase();
 	const stream = fs.createReadStream(streamPath);
 
-	return { found, ext, stream };
+	return { valid, fileExtension, stream };
 };
 
 http
 	.createServer(async (req, res) => {
-		const file = await prepareFile(req.url);
-		const statusCode = file.found ? 200 : 404;
-		const mimeType = MIME_TYPES[file.ext] || MIME_TYPES.default;
+		const { valid, fileExtension, stream } = await prepareFile(req.url);
+
+		const statusCode = valid ? 200 : 404;
+		const mimeType = MIME_TYPES[fileExtension] || MIME_TYPES.default;
 
 		res.writeHead(statusCode, { 'Content-Type': mimeType });
-		file.stream.pipe(res);
+		stream.pipe(res);
 
 		console.log(`${req.method} ${req.url} ${statusCode}`);
 	})
